@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Data Extractor</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        textarea {
+            width: 100%;
+            height: 150px;
+            margin-bottom: 20px;
+        }
+        .output {
+            background-color: #f4f4f4;
+            padding: 15px;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Data Extractor</h1>
+    <textarea id="rawData" placeholder="Paste your raw data here..."></textarea>
+    <button onclick="extractData()">Extract Data</button>
+
+    <div class="output">
+        <h2>Extracted Information:</h2>
+        <p><strong>Last Name:</strong> <span id="lastName"></span></p>
+        <p><strong>First Name:</strong> <span id="firstName"></span></p>
+        <p><strong>Date of Birth:</strong> <span id="dob"></span></p>
+        <p><strong>Address:</strong> <span id="address"></span></p>
+        <p><strong>City:</strong> <span id="city"></span></p>
+        <p><strong>State:</strong> <span id="state"></span></p>
+        <p><strong>Postal Code:</strong> <span id="postalCode"></span></p>
+        <p><strong>ID Number (DAQ):</strong> <span id="idNumber"></span></p>
+    </div>
+
+    <script>
+        async function extractData() {
+            const rawData = document.getElementById('rawData').value;
+
+            // Extract important information with refined patterns
+            const lastName = rawData.match(/DCS[A-Z \-]+/)?.[0]?.replace('DCS', '') || '';
+            const firstName = rawData.match(/DAC[A-Z \-]+/)?.[0]?.replace('DAC', '') || rawData.match(/DCT[A-Z ]+/)?.[0]?.replace('DCT', '') || '';
+            const dob = rawData.match(/DBB\d{8}/)?.[0]?.replace('DBB', '') || '';
+            const address = rawData.match(/DAG[A-Z0-9 ]+/)?.[0]?.replace('DAG', '') || '';
+            const city = rawData.match(/DAI[A-Z ]+/)?.[0]?.replace('DAI', '') || '';
+            const state = rawData.match(/DAJ[A-Z]{2}/)?.[0]?.replace('DAJ', '') || '';
+            const postalCode = rawData.match(/DAK\d{9}/)?.[0]?.replace('DAK', '') || '';
+            const idNumber = rawData.match(/DAQ([A-Z]\s[A-Z0-9]{3}\s[A-Z0-9]{3}\s[A-Z0-9]{3}\s[A-Z0-9]{3})/)?.[1]?.trim() || '';
+
+            // Further cleanup if needed
+            const cleanedLastName = lastName.replace(/DDENDAC.*/, '').replace(/DCT.*/, '').trim();
+            const cleanedFirstName = firstName.replace(/DDFN.*/, '').replace(/DCT/, '').replace(/DBD/, '').trim();
+            const cleanedAddress = address.replace(/DAIDEARBORN.*/, '').trim();
+            const cleanedCity = city.replace(/DAJM.*/, '').trim();
+            const cleanedIdNumber = idNumber.trim(); // Clean up ID number if needed
+
+            // Combine first and last name for the full name
+            const fullName = `${cleanedFirstName} ${cleanedLastName}`.trim();
+
+            // Display the extracted information
+            document.getElementById('lastName').textContent = cleanedLastName;
+            document.getElementById('firstName').textContent = cleanedFirstName;
+            document.getElementById('dob').textContent = dob;
+            document.getElementById('address').textContent = cleanedAddress;
+            document.getElementById('city').textContent = cleanedCity;
+            document.getElementById('state').textContent = state;
+            document.getElementById('postalCode').textContent = postalCode;
+            document.getElementById('idNumber').textContent = cleanedIdNumber;
+
+            // Send the data to the backend
+            try {
+                const response = await fetch('http://localhost:5000/save-data', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        name: fullName, // Send the full name
+                        idNumber: cleanedIdNumber,
+                        dob,
+                        address: cleanedAddress,
+                        city: cleanedCity,
+                        state,
+                        postalCode,
+                    }),
+                });
+
+                const result = await response.json();
+                console.log(result.message); // Log the response from the backend
+            } catch (error) {
+                console.error('Error sending data to the backend:', error);
+            }
+        }
+    </script>
+</body>
+</html>
