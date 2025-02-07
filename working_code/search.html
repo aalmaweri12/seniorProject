@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Search by ICDID</title>
+    <link rel="stylesheet" href="styles.css"> <!-- Reuse the same CSS file -->
+    <!-- SweetAlert2 CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+</head>
+<body>
+    <div class="container">
+        <h1>Search by ICDID</h1>
+        <input type="text" id="icdidInput" placeholder="Enter ICDID...">
+        <button onclick="searchByICDID()">Search</button>
+
+        <div class="output" id="result" style="display: none;">
+            <h2>User Information:</h2>
+            <p><strong>Name:</strong> <span id="userName"></span></p>
+            <p><strong>Address:</strong> <span id="userAddress"></span></p>
+            <p><strong>Status:</strong> <span id="userStatus"></span></p>
+        </div>
+    </div>
+
+    <script>
+async function searchByICDID() {
+    const icdid = document.getElementById('icdidInput').value;
+
+    if (!icdid) {
+        Swal.fire({
+            icon: 'error',
+            title: 'Error!',
+            text: 'Please enter an ICDID.',
+        });
+        return;
+    }
+
+    try {
+        const response = await fetch('http://localhost:5000/find-by-icdid', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ icdid }),
+        });
+
+        const result = await response.json();
+
+        if (response.status === 200) {
+            // Display the user information
+            document.getElementById('userName').textContent = result.name;
+            document.getElementById('userAddress').textContent = result.address;
+            document.getElementById('userStatus').textContent = 'Served';
+            document.getElementById('result').style.display = 'block';
+
+            Swal.fire({
+                icon: 'success',
+                title: 'Success!',
+                text: result.message,
+            });
+        } else if (response.status === 403) {
+            // User cannot be served again within 48 hours
+            Swal.fire({
+                icon: 'warning',
+                title: 'Warning!',
+                text: result.message,
+            });
+        } else {
+            Swal.fire({
+                icon: 'error',
+                title: 'Error!',
+                text: result.message,
+            });
+        }
+    } catch (error) {
+        console.error('Error searching by ICDID:', error);
+        Swal.fire({
+            icon: 'error',
+            title: 'Error!',
+            text: 'An error occurred while searching for the user.',
+        });
+    }
+}
+    </script>
+</body>
+</html>

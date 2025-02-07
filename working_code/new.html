@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Data Extractor</title>
+    <link rel="stylesheet" href="styles.css">
+    <!-- SweetAlert2 CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+</head>
+<body>
+    <h1>Data Extractor</h1>
+    <textarea id="rawData" placeholder="Paste your raw data here..."></textarea>
+    <button onclick="extractData()">Extract Data</button>
+
+    <div class="output">
+        <h2>Extracted Information:</h2>
+        <p><strong>Last Name:</strong> <input type="text" id="lastName" readonly></p>
+        <p><strong>First Name:</strong> <input type="text" id="firstName" readonly></p>
+        <p><strong>Date of Birth:</strong> <input type="text" id="dob" readonly></p>
+        <p><strong>Address:</strong> <textarea id="address" readonly></textarea></p>
+        <p><strong>City:</strong> <input type="text" id="city" readonly></p>
+        <p><strong>State:</strong> <input type="text" id="state" readonly></p>
+        <p><strong>Postal Code:</strong> <input type="text" id="postalCode" readonly></p>
+        <p><strong>ID Number (DAQ):</strong> <input type="text" id="idNumber" readonly></p>
+        <p><strong>ICDID:</strong> <input type="text" id="icdid" readonly></p>
+    </div>
+
+    <button onclick="makeEditable()">Edit Data</button>
+    <button onclick="submitData()">Submit Data</button>
+
+    <script>
+        async function extractData() {
+            const rawData = document.getElementById('rawData').value;
+
+            // Extract important information with refined patterns
+            const lastName = rawData.match(/DCS[A-Z \-]+/)?.[0]?.replace('DCS', '') || '';
+            const firstName = rawData.match(/DAC[A-Z \-]+/)?.[0]?.replace('DAC', '') || rawData.match(/DCT[A-Z ]+/)?.[0]?.replace('DCT', '') || '';
+            const dob = rawData.match(/DBB\d{8}/)?.[0]?.replace('DBB', '') || '';
+            const address = rawData.match(/DAG[A-Z0-9 ]+/)?.[0]?.replace('DAG', '') || '';
+            const city = rawData.match(/DAI[A-Z ]+/)?.[0]?.replace('DAI', '') || '';
+            const state = rawData.match(/DAJ[A-Z]{2}/)?.[0]?.replace('DAJ', '') || '';
+            const postalCode = rawData.match(/DAK\d{9}/)?.[0]?.replace('DAK', '') || '';
+            const idNumber = rawData.match(/DAQ([A-Z]\s[A-Z0-9]{3}\s[A-Z0-9]{3}\s[A-Z0-9]{3}\s[A-Z0-9]{3})/)?.[1]?.trim() || '';
+
+            // Further cleanup if needed
+            const cleanedLastName = lastName.replace(/DDENDAC.*/, '').replace(/DCT.*/, '').trim();
+            const cleanedFirstName = firstName.replace(/DDFN.*/, '').replace(/DCT/, '').replace(/DBD/, '').trim();
+            const cleanedAddress = address.replace(/DAIDEARBORN.*/, '').trim();
+            const cleanedCity = city.replace(/DAJM.*/, '').trim();
+            const cleanedIdNumber = idNumber.trim(); // Clean up ID number if needed
+
+            // Display the extracted information
+            document.getElementById('lastName').value = cleanedLastName;
+            document.getElementById('firstName').value = cleanedFirstName;
+            document.getElementById('dob').value = dob;
+            document.getElementById('address').value = cleanedAddress;
+            document.getElementById('city').value = cleanedCity;
+            document.getElementById('state').value = state;
+            document.getElementById('postalCode').value = postalCode;
+            document.getElementById('idNumber').value = cleanedIdNumber;
+        }
+
+        function makeEditable() {
+            const inputs = document.querySelectorAll('.output input, .output textarea');
+            inputs.forEach(input => input.readOnly = false);
+        }
+
+        async function submitData() {
+            const lastName = document.getElementById('lastName').value;
+            const firstName = document.getElementById('firstName').value;
+            const dob = document.getElementById('dob').value;
+            const address = document.getElementById('address').value;
+            const city = document.getElementById('city').value;
+            const state = document.getElementById('state').value;
+            const postalCode = document.getElementById('postalCode').value;
+            const idNumber = document.getElementById('idNumber').value;
+            const icdid = document.getElementById('icdid').value; 
+            const fullName = `${firstName} ${lastName}`.trim();
+
+            try {
+                const response = await fetch('http://localhost:5000/save-data', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        name: fullName,
+                        idNumber: idNumber,
+                        dob,
+                        address,
+                        city,
+                        state,
+                        postalCode,
+                        icdid,
+                    }),
+                });
+
+                const result = await response.json();
+
+                // Display SweetAlert2 pop-up based on the backend response
+                if (response.status === 201) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Success!',
+                        text: result.message,
+                    });
+                } else if (response.status === 200) { // This now only applies to updates
+                    Swal.fire({
+                        icon: 'info',
+                        title: 'Updated!',
+                        text: result.message,
+                    });
+                } else if (response.status === 409) {
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Warning!',
+                        text: result.message,
+                    });
+                } else {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error!',
+                        text: result.message || 'An error occurred while saving/updating data.',
+                    });
+                }
+            } catch (error) {
+                console.error('Error sending data to the backend:', error);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error!',
+                    text: 'An error occurred while sending data to the backend.',
+                });
+            }
+        }
+    </script>
+</body>
+</html>
