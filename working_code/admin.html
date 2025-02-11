@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Page</title>
+</head>
+<body>
+    <h1>Admin Dashboard</h1>
+
+    <!-- Search Users -->
+    <div>
+        <h2>Search Users</h2>
+        <input type="text" id="searchQuery" placeholder="Enter name, ID, or ICDID">
+        <button onclick="searchUsers()">Search</button>
+        <div id="searchResults"></div>
+    </div>
+
+    <!-- Export to Excel -->
+    <div>
+        <h2>Export Data</h2>
+        <button onclick="exportToExcel()">Export to Excel</button>
+    </div>
+
+    <script>
+        async function searchUsers() {
+            const query = document.getElementById('searchQuery').value;
+            const response = await fetch(`http://localhost:5000/search-users?query=${query}`);
+            const users = await response.json();
+
+            const resultsDiv = document.getElementById('searchResults');
+            resultsDiv.innerHTML = ''; 
+
+            if (users.length === 0) {
+                resultsDiv.innerHTML = '<p>No users found.</p>';
+                return;
+            }
+
+            users.forEach(user => {
+                const userDiv = document.createElement('div');
+                userDiv.innerHTML = `
+                    <p><strong>Name:</strong> <input type="text" value="${user.name}" id="name-${user._id}"></p>
+                    <p><strong>ID Number:</strong> ${user.idNumber}</p>
+                    <p><strong>ICDID:</strong> ${user.icdid}</p>
+                    <p><strong>Address:</strong> <input type="text" value="${user.address}" id="address-${user._id}"></p>
+                    <p><strong>City:</strong> <input type="text" value="${user.city}" id="city-${user._id}"></p>
+                    <p><strong>State:</strong> <input type="text" value="${user.state}" id="state-${user._id}"></p>
+                    <p><strong>Postal Code:</strong> <input type="text" value="${user.postalCode}" id="postalCode-${user._id}"></p>
+                    <button onclick="updateUser('${user._id}')">Save Changes</button>
+                    <hr>
+                `;
+                resultsDiv.appendChild(userDiv);
+            });
+        }
+
+        async function updateUser(userId) {
+            const updatedData = {
+                name: document.getElementById(`name-${userId}`).value,
+                address: document.getElementById(`address-${userId}`).value,
+                city: document.getElementById(`city-${userId}`).value,
+                state: document.getElementById(`state-${userId}`).value,
+                postalCode: document.getElementById(`postalCode-${userId}`).value
+            };
+
+            const response = await fetch(`http://localhost:5000/edit-user/${userId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(updatedData)
+            });
+
+            const result = await response.json();
+            alert(result.message);
+        }
+
+        async function exportToExcel() {
+            const response = await fetch('http://localhost:5000/export-to-excel');
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'users.xlsx';
+            a.click();
+        }
+    </script>
+</body>
+</html>
